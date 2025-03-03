@@ -1,9 +1,15 @@
 const express = require("express");
 const router = express.Router();
-const { registroPost } = require("../controllers/registroController");
 
-// Solo incluir la ruta POST para probar
+const { 
+    registroPost,
+    registroGet 
+
+} = require("../controllers/registroController");
+
+
 router.post("/", registroPost);
+router.get("/", registroGet);
 
 module.exports = router;
 

@@ -75,7 +75,42 @@ const registroPost = async (req, res) => {
   }
 };
 
+/**
+ * Mostrar el usuario registrado o registrados
+ *
+ * @param {*} req
+ * @param {*} res
+ */
+const registroGet = (req, res) => {
+    // Si se pasa un ID específico en la query
+    if (req.query && req.query.id) {
+      Registro.findById(req.query.id)
+        .then((registro) => {
+          if (!registro) {
+            return res.status(404).json({ error: "Registro no encontrado" });
+          }
+          res.json(registro);
+        })
+        .catch((err) => {
+          res.status(404);
+          console.log("Error al buscar el registro", err);
+          res.json({ error: "Error al obtener el registro" });
+        });
+    } else {
+      // Si no se pasa un ID, se obtienen todos los registros
+      Registro.find()
+        .then((registros) => {
+          res.json(registros);
+        })
+        .catch((err) => {
+          res.status(422);
+          res.json({ error: err });
+        });
+    }
+};
+
 module.exports = {
-  registroPost
+  registroPost,
+  registroGet
 };
 
