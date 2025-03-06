@@ -21,6 +21,7 @@ Esto instalará todas las dependencias necesarias como:
     cors
     body-parser
     dotenv
+    moment
 
 Uso:
 Inicia el servidor de desarrollo:
