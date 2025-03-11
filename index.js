@@ -29,7 +29,9 @@ connectDB();
 
 // Importar rutas
 const registroRoutes = require("./routes/registro");
+const perfilesRoutes = require("./routes/perfiles");
 app.use("/registro", registroRoutes);
+app.use("/perfiles", perfilesRoutes);
 
 // Iniciar servidor
 const PORT = process.env.PORT || 3000;
