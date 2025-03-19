@@ -6,7 +6,8 @@ const {
     registroGet,
     registroUpdate,
     registroDelete,
-    loginPost
+    loginPost,
+    validarPin
 
 } = require("../controllers/usuariosController");
 
@@ -16,5 +17,6 @@ router.get("/", registroGet);
 router.put("/", registroUpdate);
 router.delete("/", registroDelete);
 router.post("/", loginPost);
+router.post("/validar-pin", validarPin)
 
 module.exports = router;

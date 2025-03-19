@@ -240,10 +240,46 @@ const loginPost = async (req, res) => {
   }
 };
 
+/**
+ * Valida el PIN de un usuario
+ *
+ * @param {*} req
+ * @param {*} res
+ */
+const validarPin = async (req, res) => {
+  const { id, pin } = req.body;
+
+  // Validación de datos
+  if (!id || !pin) {
+      return res.status(400).json({ error: "El ID del usuario y el PIN son obligatorios" });
+  }
+
+  try {
+      // Buscar el usuario por ObjectId
+      const usuario = await Registro.findById(id);
+
+      if (!usuario) {
+          return res.status(404).json({ error: "Usuario no encontrado" });
+      }
+
+      // Validar el PIN
+      if (String(usuario.pin).trim().localeCompare(String(pin).trim()) !== 0) {
+          return res.status(401).json({ error: "PIN incorrecto" });
+      }
+
+      res.json({ message: "PIN válido" });
+  } catch (error) {
+      console.error("Error al validar el PIN:", error);
+      res.status(500).json({ error: "Hubo un error al validar el PIN" });
+  }
+};
+
+
 module.exports = {
   registroPost,
   registroGet,
   registroUpdate,
   registroDelete,
+  validarPin,
   loginPost
 };

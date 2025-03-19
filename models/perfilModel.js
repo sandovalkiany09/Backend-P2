@@ -2,22 +2,11 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 // Modelo de perfiles
-const PerfilSchema = new Schema({
-  usuarioId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Registro', // Referencia al modelo de usuarios
-    required: true 
-  },
-  nombre: { 
-    type: String, 
-    required: true 
-  },
-  imagen: { 
-    type: String, 
-    required: true 
-  },
-}, {
-  timestamps: true // Agrega campos createdAt y updatedAt automáticamente
-});
+const perfilSchema = new mongoose.Schema({
+  usuarioId: { type: mongoose.Schema.Types.ObjectId, ref: "Usuario", required: true },
+  nombre: { type: String, required: true },
+  pin: { type: String, required: true },
+  imagen: { type: String, required: true } 
+}, { timestamps: true });
 
-module.exports = mongoose.model('Perfil', PerfilSchema);
+module.exports = mongoose.model('Perfil', perfilSchema);

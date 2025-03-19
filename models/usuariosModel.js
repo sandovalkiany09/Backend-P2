@@ -5,7 +5,7 @@ const registroSchema = new Schema({
   correo: { type: String, required: true, unique: true },
   contrasenia: { type: String, required: true },
   telefono: { type: String, required: true },
-  pin: { type: String, required: true }, // Se validará en el controller
+  pin: { type: String, required: true }, 
   nombre: { type: String, required: true },
   apellidos: { type: String, required: true },
   pais: { type: String },

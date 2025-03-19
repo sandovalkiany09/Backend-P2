@@ -6,6 +6,9 @@ const bodyParser = require("body-parser");
 
 const app = express();
 
+//Para servir las imágenes desde el back
+app.use('/img', express.static('img'));
+
 // Configurar CORS
 app.use(cors({ domains: "*", methods: "*" }));
 

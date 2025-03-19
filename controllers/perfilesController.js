@@ -8,12 +8,12 @@ const Registro = require("../models/usuariosModel"); // Importa el modelo de usu
  * @param {*} res
  */
 const crearPerfil = async (req, res) => {
-  const { usuarioId, nombre } = req.body;
+  const { usuarioId, nombre, pin, imagen } = req.body;
 
   // Validación de campos vacíos
-  if (!usuarioId || !nombre) {
+  if (!usuarioId || !nombre || !pin || !imagen) {
     return res.status(400).json({
-      error: "El ID del usuario y el nombre del perfil son obligatorios",
+      error: "El ID del usuario, nombre, PIN y imagen son obligatorios",
     });
   }
 
@@ -26,19 +26,20 @@ const crearPerfil = async (req, res) => {
       });
     }
 
-    // Verificar si el perfil ya existe para este usuario
-    const perfilExistente = await Perfil.findOne({ usuarioId, nombre });
+    // Verificar si ya existe un perfil con el mismo nombre o PIN para el usuario
+    const perfilExistente = await Perfil.findOne({ usuarioId, $or: [{ nombre }, { pin }] });
     if (perfilExistente) {
       return res.status(400).json({
-        error: "El perfil ya existe para este usuario",
+        error: "Ya existe un perfil con ese nombre o PIN para este usuario",
       });
     }
 
-    // Crear el perfil con una imagen por defecto
+    // Crear el perfil
     const nuevoPerfil = new Perfil({
       usuarioId,
       nombre,
-      imagen: "https://i.pinimg.com/736x/f9/1f/ba/f91fba046dd5208787a3ffa5c1f299e7.jpg"
+      pin,
+      imagen,
     });
 
     // Guardar el perfil en la base de datos
@@ -62,9 +63,9 @@ const crearPerfil = async (req, res) => {
  * @param {*} res
  */
 const obtenerPerfiles = async (req, res) => {
-  const { usuarioId } = req.query;
+  const usuarioId = req.headers["usuario-id"]; 
 
-  // Validación de campos vacíos
+  // Validación de datos vacíos
   if (!usuarioId) {
     return res.status(400).json({
       error: "El ID del usuario es obligatorio",
@@ -72,8 +73,9 @@ const obtenerPerfiles = async (req, res) => {
   }
 
   try {
-    // Buscar los perfiles del usuario
+    // Buscar los perfiles asociados al usuarioId
     const perfiles = await Perfil.find({ usuarioId });
+
     res.json(perfiles);
   } catch (error) {
     console.error("Error al obtener los perfiles:", error);
@@ -84,40 +86,43 @@ const obtenerPerfiles = async (req, res) => {
 };
 
 /**
- * Actualiza un perfil existente.
+ * Actualiza los datos de un perfil.
  *
  * @param {*} req
  * @param {*} res
  */
 const actualizarPerfil = async (req, res) => {
-  const { id } = req.query;
-  const { nombre, imagen } = req.body;
+  const { usuarioId, pinActual, nombre, pinNuevo, imagen } = req.body;
 
-  // Validación de campos vacíos
-  if (!id) {
+  // Validación de datos vacíos
+  if (!usuarioId || !pinActual || !nombre) {
     return res.status(400).json({
-      error: "El ID del perfil es obligatorio",
+      error: "El ID del usuario, PIN actual y nombre son obligatorios",
     });
   }
 
   try {
-    // Buscar el perfil por su ID
-    const perfil = await Perfil.findById(id);
+    // Buscar el perfil por usuarioId y PIN actual
+    const perfil = await Perfil.findOne({ usuarioId, pin: pinActual });
+
     if (!perfil) {
+      // Si no se encuentra el perfil
       return res.status(404).json({
-        error: "Perfil no encontrado",
+        error: "PIN actual incorrecto o perfil no encontrado",
       });
     }
 
-    // Actualizar los campos proporcionados
-    if (nombre) perfil.nombre = nombre;
-    if (imagen) perfil.imagen = imagen;
+    // Actualizar los datos del perfil
+    perfil.nombre = nombre;
+    perfil.pin = pinNuevo || pinActual; // Si no se proporciona un PIN nuevo, se mantiene el actual
+    perfil.imagen = imagen;
 
     // Guardar los cambios
-    const perfilActualizado = await perfil.save();
+    await perfil.save();
+
     res.json({
-      message: "Perfil actualizado correctamente",
-      data: perfilActualizado,
+      success: true,
+      message: "Perfil actualizado exitosamente",
     });
   } catch (error) {
     console.error("Error al actualizar el perfil:", error);
@@ -127,33 +132,38 @@ const actualizarPerfil = async (req, res) => {
   }
 };
 
+
 /**
- * Elimina un perfil existente.
+ * Elimina un perfil.
  *
  * @param {*} req
  * @param {*} res
  */
 const eliminarPerfil = async (req, res) => {
-  const { id } = req.query;
+  const { usuarioId, pin } = req.body;
 
-  // Validación de campos vacíos
-  if (!id) {
+  // Validación de datos vacíos
+  if (!usuarioId || !pin) {
     return res.status(400).json({
-      error: "El ID del perfil es obligatorio",
+      error: "El ID del usuario y el PIN son obligatorios",
     });
   }
 
   try {
-    // Buscar y eliminar el perfil por su ID
-    const perfilEliminado = await Perfil.findByIdAndDelete(id);
+    // Buscar y eliminar el perfil por usuarioId y PIN
+    const perfilEliminado = await Perfil.findOneAndDelete({ usuarioId, pin });
+
     if (!perfilEliminado) {
+      // Si no se encuentra el perfil
       return res.status(404).json({
-        error: "Perfil no encontrado",
+        error: "PIN incorrecto o perfil no encontrado",
       });
     }
 
+    // Si el perfil se eliminó correctamente
     res.json({
-      message: "Perfil eliminado correctamente",
+      success: true,
+      message: "Perfil eliminado exitosamente",
     });
   } catch (error) {
     console.error("Error al eliminar el perfil:", error);
@@ -163,9 +173,51 @@ const eliminarPerfil = async (req, res) => {
   }
 };
 
+/**
+ * Valida si el nombre y el PIN ya existen para el perfil de un usuario.
+ *
+ * @param {*} req
+ * @param {*} res
+ */
+const validarNombreYPin = async (req, res) => {
+  const { usuarioId, nombre, pin } = req.body;
+
+  // Validación de datos vacíos
+  if (!usuarioId || !nombre || !pin) {
+    return res.status(400).json({
+      error: "El ID del usuario, nombre y PIN son obligatorios",
+    });
+  }
+
+  try {
+    // Verificar si ya existe un perfil con el mismo nombre o PIN para el usuario
+    const perfilExistente = await Perfil.findOne({ usuarioId, $or: [{ nombre }, { pin }] });
+
+    if (perfilExistente) {
+      // Si ya existe un perfil con el mismo nombre o PIN
+      return res.status(400).json({
+        exists: true,
+        message: "El nombre o el PIN ya existen para este usuario",
+      });
+    }
+
+    // Si el nombre y el PIN son válidos
+    res.json({
+      exists: false,
+      message: "El nombre y el PIN son válidos",
+    });
+  } catch (error) {
+    console.error("Error al validar el nombre y PIN:", error);
+    res.status(500).json({
+      error: "Hubo un error al validar el nombre y el PIN",
+    });
+  }
+};
+
 module.exports = {
   crearPerfil,
   obtenerPerfiles,
   actualizarPerfil,
   eliminarPerfil,
+  validarNombreYPin,
 };

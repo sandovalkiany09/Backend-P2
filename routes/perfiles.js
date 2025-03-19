@@ -6,12 +6,14 @@ const {
   obtenerPerfiles,
   actualizarPerfil,
   eliminarPerfil,
+  validarNombreYPin
 } = require("../controllers/perfilesController");
 
 // Rutas para perfiles
 router.post("/", crearPerfil); // Crear un perfil
-router.get("/", obtenerPerfiles); // Obtener perfiles de un usuario
-router.put("/", actualizarPerfil); // Actualizar un perfil
-router.delete("/", eliminarPerfil); // Eliminar un perfil
+router.get("/obtener", obtenerPerfiles); // Obtener perfiles de un usuario
+router.put("/actualizar", actualizarPerfil); // Actualizar un perfil
+router.delete("/eliminar", eliminarPerfil); // Eliminar un perfil
+router.post("/validar", validarNombreYPin); // Validar nombre y PIN
 
 module.exports = router;
