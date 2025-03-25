@@ -35,6 +35,9 @@ const registroRoutes = require("./routes/registro");
 const perfilesRoutes = require("./routes/perfiles");
 const playlistRoutes = require("./routes/playlist");
 const videosRoutes = require("./routes/videos");
+const searchRoutes = require('./routes/buscar');
+
+app.use('/buscar', searchRoutes);
 app.use("/registro", registroRoutes);
 app.use("/perfiles", perfilesRoutes);
 app.use("/playlist", playlistRoutes);
