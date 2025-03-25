@@ -33,8 +33,12 @@ connectDB();
 // Importar rutas
 const registroRoutes = require("./routes/registro");
 const perfilesRoutes = require("./routes/perfiles");
+const playlistRoutes = require("./routes/playlist");
+const videosRoutes = require("./routes/videos");
 app.use("/registro", registroRoutes);
 app.use("/perfiles", perfilesRoutes);
+app.use("/playlist", playlistRoutes);
+app.use("/videos", videosRoutes);
 
 // Iniciar servidor
 const PORT = process.env.PORT || 3000;
