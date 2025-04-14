@@ -1,4 +1,4 @@
-# Backend-P1
+# Backend-P2
 Este es el Backend del proyecto KidsTube, el Proyecto 1 del curso de Web. El backend está desarrollado con Node.js y Express, y utiliza MongoDB a través de Mongoose para almacenar los datos.
 
 Requisitos:
