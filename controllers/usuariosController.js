@@ -1,5 +1,6 @@
 const Registro = require("../models/usuariosModel");
 const moment = require("moment"); // Usamos moment para calcular la edad
+const jwt = require("jsonwebtoken");
 
 /**
  * Maneja el registro de un nuevo usuario o redirige al login si es una solicitud de inicio de sesión.
@@ -209,7 +210,6 @@ const loginPost = async (req, res) => {
     // Buscar al usuario por su correo
     const usuario = await Registro.findOne({ correo });
 
-    // Verificar si el usuario existe
     if (!usuario) {
       return res.status(404).json({
         error: "Usuario no encontrado",
@@ -223,10 +223,21 @@ const loginPost = async (req, res) => {
       });
     }
 
-    // Si todo está correcto, devolver una respuesta exitosa
+    // Crear token JWT
+    const token = jwt.sign(
+      {
+        id: usuario._id,
+        correo: usuario.correo,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN }
+    );
+
+    // Devolver token y datos del usuario
     res.status(200).json({
       message: "Inicio de sesión exitoso",
-      data: {
+      token,
+      usuario: {
         id: usuario._id,
         nombre: usuario.nombre,
         correo: usuario.correo,
@@ -239,6 +250,7 @@ const loginPost = async (req, res) => {
     });
   }
 };
+
 
 /**
  * Valida el PIN de un usuario
