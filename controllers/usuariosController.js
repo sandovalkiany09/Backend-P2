@@ -1,4 +1,4 @@
-const Registro = require("../models/usuariosModel");
+const Usuario = require("../models/usuariosModel");
 const moment = require("moment"); // Usamos moment para calcular la edad
 const jwt = require("jsonwebtoken");
 
@@ -8,7 +8,7 @@ const jwt = require("jsonwebtoken");
  * @param {*} req
  * @param {*} res
  */
-const registroPost = async (req, res) => {
+const usuarioPost = async (req, res) => {
   const { correo, contrasenia, telefono, pin, nombre, apellidos, pais, fechaNacimiento } = req.body;
 
   // Verificar si es una solicitud de login
@@ -55,7 +55,7 @@ const registroPost = async (req, res) => {
   }
 
   // Crear un nuevo registro
-  const nuevoRegistro = new Registro({
+  const nuevoUsuario = new Usuario({
     correo,
     contrasenia,
     telefono,
@@ -68,10 +68,10 @@ const registroPost = async (req, res) => {
 
   // Guardar el nuevo registro en la base de datos
   try {
-    const registroGuardado = await nuevoRegistro.save();
+    const usuarioGuardado = await nuevoUsuario.save();
     res.status(201).json({
       message: 'Usuario registrado correctamente',
-      data: registroGuardado
+      data: usuarioGuardado
     });
   } catch (err) {
     console.error('Error al guardar el usuario:', err);
@@ -82,38 +82,47 @@ const registroPost = async (req, res) => {
 };
 
 /**
- * Mostrar el usuario registrado o registrados
+ * Mostrar usuarios registrados
  *
  * @param {*} req
  * @param {*} res
  */
-const registroGet = (req, res) => {
-    // Si se pasa un ID específico en la query
-    if (req.query && req.query.id) {
-      Registro.findById(req.query.id)
-        .then((registro) => {
-          if (!registro) {
-            return res.status(404).json({ error: "Registro no encontrado" });
-          }
-          res.json(registro);
-        })
-        .catch((err) => {
-          res.status(404);
-          console.log("Error al buscar el registro", err);
-          res.json({ error: "Error al obtener el registro" });
-        });
-    } else {
-      // Si no se pasa un ID, se obtienen todos los registros
-      Registro.find()
-        .then((registros) => {
-          res.json(registros);
-        })
-        .catch((err) => {
-          res.status(422);
-          res.json({ error: err });
-        });
-    }
+const usuarioGet = async (req, res) => {
+  try {
+    const usuarios = await Usuario.find();
+    res.json(usuarios);
+  } catch (err) {
+    console.error("Error al obtener los usuarios:", err);
+    res.status(500).json({ error: "Hubo un error al obtener los usuarios" });
+  }
 };
+
+/**
+ * Mostrar usuario con Id específico
+ *
+ * @param {*} req
+ * @param {*} res
+ */
+const usuarioPostId = async (req, res) => {
+  const { id } = req.body;
+
+  if (!id) {
+    return res.status(400).json({ error: "El ID es obligatorio" });
+  }
+
+  try {
+    const usuario = await Usuario.findById(id);
+    if (!usuario) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    res.json(usuario);
+  } catch (err) {
+    console.error("Error al buscar el registro:", err);
+    res.status(500).json({ error: "Error al obtener el registro" });
+  }
+};
+
 
 /**
  * Actualiza un registro de usuario existente
@@ -121,40 +130,42 @@ const registroGet = (req, res) => {
  * @param {*} req
  * @param {*} res
  */
-const registroUpdate = async (req, res) => {
-  if (req.query && req.query.id) {
-      const { id } = req.query;
-      const { correo, contrasenia, telefono, pin, nombre, apellidos, pais, fechaNacimiento } = req.body;
+const usuarioUpdate = async (req, res) => {
+  const { id, correo, contrasenia, telefono, pin, nombre, apellidos, pais, fechaNacimiento } = req.body;
 
-      try {
-          const registro = await Registro.findById(id);
-          if (!registro) {
-              return res.status(404).json({ error: "Registro no encontrado" });
-          }
+  // Validar que se reciba el ID
+  if (!id) {
+    return res.status(400).json({ error: "Se requiere un ID para actualizar el usuario" });
+  }
 
-          // Actualizar solo los campos proporcionados
-          if (correo) registro.correo = correo;
-          if (contrasenia) registro.contrasenia = contrasenia;
-          if (telefono) registro.telefono = telefono;
-          if (pin) registro.pin = pin;
-          if (nombre) registro.nombre = nombre;
-          if (apellidos) registro.apellidos = apellidos;
-          if (pais) registro.pais = pais;
-          if (fechaNacimiento) registro.fechaNacimiento = fechaNacimiento;
+  try {
+    const usuario = await Usuario.findById(id);
+    if (!usuario) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
 
-          const registroActualizado = await registro.save();
-          res.json({
-              message: 'Registro actualizado correctamente',
-              data: registroActualizado
-          });
-      } catch (err) {
-          console.error('Error al actualizar el registro:', err);
-          res.status(500).json({ error: 'Hubo un error al actualizar el registro' });
-      }
-  } else {
-      res.status(400).json({ error: "Se requiere un ID para actualizar el registro" });
+    // Actualizar solo los campos proporcionados
+    if (correo) usuario.correo = correo;
+    if (contrasenia) usuario.contrasenia = contrasenia;
+    if (telefono) usuario.telefono = telefono;
+    if (pin) usuario.pin = pin;
+    if (nombre) usuario.nombre = nombre;
+    if (apellidos) usuario.apellidos = apellidos;
+    if (pais) usuario.pais = pais;
+    if (fechaNacimiento) usuario.fechaNacimiento = fechaNacimiento;
+
+    const usuarioActualizado = await usuario.save();
+
+    res.json({
+      message: 'Usuario actualizado correctamente',
+      data: usuarioActualizado
+    });
+  } catch (err) {
+    console.error('Error al actualizar el usuario:', err);
+    res.status(500).json({ error: 'Hubo un error al actualizar el usuario' });
   }
 };
+
 
 /**
  * Elimina un registro de usuario existente
@@ -162,23 +173,23 @@ const registroUpdate = async (req, res) => {
  * @param {*} req
  * @param {*} res
  */
-const registroDelete = async (req, res) => {
+const usuarioDelete = async (req, res) => {
   if (req.query && req.query.id) {
       const { id } = req.query;
 
       try {
-          const registro = await Registro.findByIdAndDelete(id);
-          if (!registro) {
+          const usuario = await Usuario.findByIdAndDelete(id);
+          if (!usuario) {
               return res.status(404).json({ error: "Registro no encontrado" });
           }
 
-          res.json({ message: 'Registro eliminado correctamente' });
+          res.json({ message: 'Usuario eliminado correctamente' });
       } catch (err) {
-          console.error('Error al eliminar el registro:', err);
-          res.status(500).json({ error: 'Hubo un error al eliminar el registro' });
+          console.error('Error al eliminar el usuario:', err);
+          res.status(500).json({ error: 'Hubo un error al eliminar el usuario' });
       }
   } else {
-      res.status(400).json({ error: "Se requiere un ID para eliminar el registro" });
+      res.status(400).json({ error: "Se requiere un ID para eliminar el usuario" });
   }
 };
 
@@ -208,7 +219,7 @@ const loginPost = async (req, res) => {
 
   try {
     // Buscar al usuario por su correo
-    const usuario = await Registro.findOne({ correo });
+    const usuario = await Usuario.findOne({ correo });
 
     if (!usuario) {
       return res.status(404).json({
@@ -268,7 +279,7 @@ const validarPin = async (req, res) => {
 
   try {
       // Buscar el usuario por ObjectId
-      const usuario = await Registro.findById(id);
+      const usuario = await Usuario.findById(id);
 
       if (!usuario) {
           return res.status(404).json({ error: "Usuario no encontrado" });
@@ -288,10 +299,11 @@ const validarPin = async (req, res) => {
 
 
 module.exports = {
-  registroPost,
-  registroGet,
-  registroUpdate,
-  registroDelete,
+  usuarioPost,
+  usuarioPostId,
+  usuarioGet,
+  usuarioUpdate,
+  usuarioDelete,
   validarPin,
   loginPost
 };
