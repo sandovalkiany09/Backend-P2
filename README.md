@@ -22,6 +22,7 @@ Esto instalará todas las dependencias necesarias como:
     body-parser
     dotenv
     moment
+    jsonwebtoken
 
 Uso:
 Inicia el servidor de desarrollo:
