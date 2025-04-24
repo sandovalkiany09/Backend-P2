@@ -3,8 +3,6 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const bodyParser = require("body-parser");
-const startApolloServer = require("../graphql"); 
-
 
 const app = express();
 
@@ -45,12 +43,8 @@ app.use("/perfiles", perfilesRoutes);
 app.use("/playlist", playlistRoutes);
 app.use("/videos", videosRoutes);
 
-// Iniciar servidor HTTP y GraphQL
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
-  console.log(`GraphQL disponible en http://localhost:${PORT}/graphql`);
 });
-
-// Inicializar Apollo Server 
-startApolloServer(app);
