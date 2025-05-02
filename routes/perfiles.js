@@ -6,7 +6,8 @@ const {
   obtenerPerfiles,
   actualizarPerfil,
   eliminarPerfil,
-  validarNombreYPin
+  validarNombreYPin,
+  validarPinYGenerarToken
 } = require("../controllers/perfilesController");
 
 const authMiddleware = require("../middlewares/authMiddleware");
@@ -17,5 +18,6 @@ router.get("/", authMiddleware, obtenerPerfiles); // Obtener perfiles de un usua
 router.put("/", authMiddleware, actualizarPerfil); // Actualizar un perfil
 router.delete("/",authMiddleware, eliminarPerfil); // Eliminar un perfil
 router.post("/validar", authMiddleware, validarNombreYPin); // Validar nombre y PIN
+router.post("/validar-pin", validarPinYGenerarToken);
 
 module.exports = router;

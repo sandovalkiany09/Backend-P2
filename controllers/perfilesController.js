@@ -1,3 +1,4 @@
+const jwt = require("jsonwebtoken");
 const Perfil = require("../models/perfilModel"); // Importa el modelo de perfiles
 const Registro = require("../models/usuariosModel"); // Importa el modelo de usuarios
 
@@ -214,10 +215,42 @@ const validarNombreYPin = async (req, res) => {
   }
 };
 
+const validarPinYGenerarToken = async (req, res) => {
+  const { perfilId, pin } = req.body;
+
+  if (!perfilId || !pin) {
+    return res.status(400).json({ error: "El perfilId y el pin son obligatorios" });
+  }
+
+  try {
+    const perfil = await Perfil.findById(perfilId);
+    if (!perfil) {
+      return res.status(404).json({ error: "Perfil no encontrado" });
+    }
+
+    if (perfil.pin !== pin) {
+      return res.status(401).json({ error: "PIN incorrecto" });
+    }
+
+    const token = jwt.sign(
+      { perfilId: perfil._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "4h" }
+    );
+
+    res.status(200).json({ token, perfil: { id: perfil._id, nombre: perfil.nombre, imagen: perfil.imagen } });
+  } catch (error) {
+    console.error("Error al validar PIN:", error);
+    res.status(500).json({ error: "Error interno al validar el PIN" });
+  }
+};
+
+
 module.exports = {
   crearPerfil,
   obtenerPerfiles,
   actualizarPerfil,
   eliminarPerfil,
   validarNombreYPin,
+  validarPinYGenerarToken
 };

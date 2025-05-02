@@ -19,72 +19,131 @@ exports.crearPlaylist = async (req, res) => {
 };
 
 exports.obtenerPlaylists = async (req, res) => {
-  const usuarioId = req.headers["usuario-id"];
+  const usuarioId = req.usuario?.id; 
+
+  if (!usuarioId) {
+    return res.status(400).json({ error: "Se requiere el ID del usuario" });
+  }
+
   try {
     const playlists = await Playlist.find({ usuarioId }).populate('perfilesAsociados');
+
     const conConteoVideos = await Promise.all(
       playlists.map(async (pl) => {
         const conteo = await Video.countDocuments({ playlistId: pl._id });
         return { ...pl.toObject(), cantidadVideos: conteo };
       })
     );
+
     res.json(conConteoVideos);
   } catch (error) {
+    console.error("Error al obtener playlists por usuario:", error);
     res.status(500).json({ error: "Error al obtener playlists" });
   }
 };
 
+
 exports.eliminarPlaylist = async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.body;
+  if (!id) return res.status(400).json({ error: "ID requerido" });
+
   try {
-    await Video.deleteMany({ playlistId: id }); // eliminar videos asociados
-    await Playlist.findByIdAndDelete(id);
-    res.json({ message: "Playlist eliminada" });
+    const eliminada = await Playlist.findByIdAndDelete(id);
+    if (!eliminada) {
+      return res.status(404).json({ error: "Playlist no encontrada" });
+    }
+    res.json({ message: "Playlist eliminada correctamente" });
   } catch (error) {
-    res.status(500).json({ error: "Error al eliminar playlist" });
+    console.error("Error al eliminar playlist:", error);
+    res.status(500).json({ error: "Error al eliminar la playlist" });
   }
 };
 
 exports.actualizarPlaylist = async (req, res) => {
-  const { id } = req.params;
-  const { nombre, perfilesAsociados } = req.body;
+  const { id, nombre, perfilesAsociados } = req.body;
 
-  if (!nombre || !perfilesAsociados || perfilesAsociados.length === 0) {
-    return res.status(400).json({ error: "Datos incompletos" });
+  if (!id || !nombre || !perfilesAsociados) {
+    return res.status(400).json({ error: "Faltan datos obligatorios" });
   }
 
   try {
-    const actualizada = await Playlist.findByIdAndUpdate(id, { nombre, perfilesAsociados }, { new: true });
-    res.json(actualizada);
+    const playlist = await Playlist.findById(id);
+    if (!playlist) return res.status(404).json({ error: "Playlist no encontrada" });
+
+    playlist.nombre = nombre;
+    playlist.perfilesAsociados = perfilesAsociados;
+
+    await playlist.save();
+    res.json({ message: "Playlist actualizada correctamente" });
   } catch (error) {
+    console.error("Error al actualizar playlist:", error);
     res.status(500).json({ error: "Error al actualizar playlist" });
   }
 };
 
 exports.obtenerPlaylistPorId = async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.body;
+
+  if (!id) {
+    return res.status(400).json({ error: "El ID de la playlist es requerido" });
+  }
+
   try {
-    const playlist = await Playlist.findById(id).populate('perfilesAsociados');
+    const playlist = await Playlist.findById(id).populate("perfilesAsociados");
+
     if (!playlist) {
       return res.status(404).json({ error: "Playlist no encontrada" });
     }
-    res.json(playlist);
+
+    res.status(200).json(playlist);
   } catch (error) {
-    console.error(error);
+    console.error("Error al obtener la playlist:", error);
     res.status(500).json({ error: "Error al obtener la playlist" });
   }
 };
 
 exports.obtenerPlaylistsPorPerfil = async (req, res) => {
+  const { perfilId } = req.body;
+
+  if (!perfilId) {
+    return res.status(400).json({ error: "perfilId es requerido" });
+  }
+
   try {
-    const perfilId = req.params.perfilId;
+    // Filtrar playlists asociadas al perfil
+    const playlists = await Playlist.find({ perfilesAsociados: perfilId }).populate('perfilesAsociados');
 
-    // Buscar playlists que incluyan este perfil en perfilesAsociados
-    const playlists = await Playlist.find({ perfilesAsociados: perfilId });
+    // Agregar conteo de videos para cada playlist
+    const conConteoVideos = await Promise.all(
+      playlists.map(async (pl) => {
+        const conteo = await Video.countDocuments({ playlistId: pl._id });
+        return { ...pl.toObject(), cantidadVideos: conteo };
+      })
+    );
 
-    res.json(playlists);
+    res.json(conConteoVideos);
   } catch (error) {
-    console.error("Error al obtener playlists por perfil:", error);
-    res.status(500).json({ message: "Error al obtener las playlists" });
+    console.error("Error al obtener playlists:", error);
+    res.status(500).json({ error: "Error al obtener playlists" });
+  }
+};
+
+exports.obtenerPerfilesAsociados = async (req, res) => {
+  const { id } = req.body;
+
+  if (!id) {
+    return res.status(400).json({ error: "ID de la playlist es requerido" });
+  }
+
+  try {
+    const playlist = await Playlist.findById(id).populate("perfilesAsociados");
+    if (!playlist) {
+      return res.status(404).json({ error: "Playlist no encontrada" });
+    }
+
+    res.status(200).json({ perfiles: playlist.perfilesAsociados });
+  } catch (error) {
+    console.error("Error al obtener perfiles asociados:", error);
+    res.status(500).json({ error: "Error al obtener los perfiles asociados" });
   }
 };

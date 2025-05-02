@@ -2,11 +2,15 @@ const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/playlistController');
 
-router.post('/', controller.crearPlaylist);
-router.get('/', controller.obtenerPlaylists);
-router.put('/:id', controller.actualizarPlaylist);
-router.delete('/:id', controller.eliminarPlaylist);
-router.get('/:id', controller.obtenerPlaylistPorId);
-router.get('/perfil/:perfilId', controller.obtenerPlaylistsPorPerfil);
+const authMiddleware = require("../middlewares/authMiddleware");
+
+router.post('/', authMiddleware, controller.crearPlaylist);
+router.get('/', authMiddleware, controller.obtenerPlaylists);
+router.put('/', authMiddleware, controller.actualizarPlaylist);
+router.delete('/', authMiddleware, controller.eliminarPlaylist);
+router.post('/detalles', authMiddleware, controller.obtenerPlaylistPorId);
+router.post('/perfilId', authMiddleware, controller.obtenerPlaylistsPorPerfil);
+router.post('/perfiles-asociados', authMiddleware, controller.obtenerPerfilesAsociados);
+
 
 module.exports = router;
