@@ -23,6 +23,8 @@ Esto instalará todas las dependencias necesarias como:
     dotenv
     moment
     jsonwebtoken
+    axios
+    twilio
 
 Uso:
 Inicia el servidor de desarrollo:
