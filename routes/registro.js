@@ -8,7 +8,9 @@ const {
     usuarioUpdate,
     usuarioDelete,
     loginPost,
-    validarPin
+    validarPin,
+    verifyUser,
+    verifyCodePost
 
 } = require("../controllers/usuariosController");
 const authMiddleware = require("../middlewares/authMiddleware");
@@ -20,5 +22,7 @@ router.put("/", authMiddleware, usuarioUpdate);
 router.delete("/", authMiddleware, usuarioDelete);
 router.post("/login", loginPost);
 router.post("/validar-pin", authMiddleware,  validarPin)
+router.get("/verify/:token", verifyUser); // Ruta para verificar la cuenta
+router.post("/verify-code", authMiddleware, verifyCodePost);
 
 module.exports = router;
