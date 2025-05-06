@@ -33,3 +33,6 @@ npm start
 Esto ejecutará el servidor en el puerto especificado en tu archivo .env (por defecto en el puerto 3000).
 
 La API estará disponible en http://localhost:3000.
+A continuación mostramos un diagrama de como nuestra aplicación esta compuesta: 
+![Diagrama](https://github.com/user-attachments/assets/c78534c5-5648-43ed-ad75-4073c4dbd58d)
+
