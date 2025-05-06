@@ -1,20 +1,62 @@
+const axios = require('axios');
 const Video = require('../models/videoModel');
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+
+exports.buscarVideosYouTube = async (req, res) => {
+  const { query } = req.query;
+
+  if (!query) return res.status(400).json({ error: "Falta el término de búsqueda" });
+
+  const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(query)}&maxResults=10&key=${YOUTUBE_API_KEY}`;
+
+  try {
+    const response = await axios.get(apiUrl);
+    const resultados = response.data.items.map(item => ({
+      videoId: item.id.videoId,
+      titulo: item.snippet.title,
+      descripcion: item.snippet.description,
+      thumbnail: item.snippet.thumbnails.default.url,
+      url: `https://www.youtube.com/watch?v=${item.id.videoId}`
+    }));
+
+    res.json(resultados);
+  } catch (error) {
+    console.error("Error al buscar videos:", error.message);
+    res.status(500).json({ error: "Error al buscar videos en YouTube" });
+  }
+};
 
 exports.agregarVideo = async (req, res) => {
   const { playlistId, nombre, url, descripcion } = req.body;
 
-  if (!playlistId || !nombre || !url) {
-    return res.status(400).json({ error: "Nombre, URL y playlist son obligatorios" });
+  if (!playlistId || !url) {
+    return res.status(400).json({ error: "URL y playlist son obligatorios" });
+  }
+
+  let finalNombre = nombre;
+  let finalDescripcion = descripcion;
+
+  // Si no se proporciona nombre o descripción, se intenta obtener desde YouTube
+  if (!nombre || !descripcion) {
+    const videoData = await exports.getYouTubeVideoData(url, YOUTUBE_API_KEY);
+
+    if (!videoData) {
+      return res.status(400).json({ error: "No se pudo obtener información del video de YouTube" });
+    }
+
+    if (!finalNombre) finalNombre = videoData.nombre;
+    if (!finalDescripcion) finalDescripcion = videoData.descripcion;
   }
 
   try {
-    const nuevoVideo = new Video({ playlistId, nombre, url, descripcion });
+    const nuevoVideo = new Video({ playlistId, nombre: finalNombre, url, descripcion: finalDescripcion });
     const guardado = await nuevoVideo.save();
     res.status(201).json(guardado);
   } catch (error) {
     res.status(500).json({ error: "Error al guardar video" });
   }
 };
+
 
 exports.obtenerVideosPorPlaylist = async (req, res) => {
   const { playlistId } = req.params;
@@ -78,4 +120,6 @@ exports.obtenerVideoPorId = async (req, res) => {
     res.status(500).json({ error: "Error al obtener el video" });
   }
 };
+
+
 
