@@ -5,7 +5,10 @@ const axios = require('axios'); // Usamos axios para interactuar con la API de M
 const { MAILERSEND_API_KEY } = process.env; // Cargar la clave API desde el archivo .env
 const twilio = require('twilio');
 const { TWILIO_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER } = process.env;
-
+const passport = require("passport");
+const GoogleStrategy = require("passport-google-oauth20").Strategy;
+const { OAuth2Client } = require('google-auth-library');
+const clientGoogle = new OAuth2Client(process.env.CLIENT_ID);
 const client = twilio(TWILIO_SID, TWILIO_AUTH_TOKEN);
 
 // Función para generar un código aleatorio de 6 dígitos
@@ -115,7 +118,7 @@ const emailData = {
           <div class="content">
             <p>Hola ${email},</p>
             <p>¡Gracias por registrarte en KidsTube! Para completar tu registro y verificar tu cuenta, por favor, haz clic en el siguiente botón:</p>
-            <a href="http://127.0.0.1:5500/client/src/verificar.html?token=${verificationToken}" class="button">Verificar Correo</a>
+            <a href="http://127.0.0.1:5501/Frontend-P2-main/src/verificar.html?token=${verificationToken}" class="button">Verificar Correo</a>
             <p>Si no has solicitado esta verificación, por favor ignora este correo.</p>
           </div>
           <div class="footer">
@@ -529,6 +532,264 @@ const verifyCodePost = async (req, res) => {
   }
 };
 
+passport.use(new GoogleStrategy({
+  clientID: process.env.CLIENT_ID,
+  clientSecret: process.env.CLIENT_SECRET,
+  callbackURL: "http://localhost:3000/auth/google", // URL de callback de Google
+}, async (accessToken, refreshToken, profile, done) => {
+  try {
+    let user = await User.findOne({ googleId: profile.id });
+
+    if (!user) {
+      user = new User({
+        googleId: profile.id,
+        email: profile.emails[0].value,  // Usamos el email de Google
+        name: profile.displayName,
+        imageUrl: profile.photos[0].value,  // Usamos la foto de Google
+      });
+      await user.save();
+    }
+
+    // Serialización del usuario para la sesión
+    return done(null, user);
+  } catch (err) {
+    return done(err);
+  }
+}));
+
+passport.serializeUser((user, done) => done(null, user.id));
+passport.deserializeUser(async (id, done) => {
+  const user = await User.findById(id);
+  done(null, user);
+});
+
+// Función para manejar el callback de Google
+const googleCallback = async (req, res) => {
+  const { id_token } = req.body;
+
+  try {
+    const ticket = await clientGoogle.verifyIdToken({
+      idToken: id_token,
+      audience: process.env.CLIENT_ID, 
+    });
+
+    const payload = ticket.getPayload();
+    const googleId = payload.sub;
+    const email = payload.email;
+    const name = payload.name;
+    const imageUrl = payload.picture;
+
+    let user = await Usuario.findOne({ googleId });
+
+    if (!user) {
+      user = new Usuario({
+        googleId,
+        email,
+        name,
+        imageUrl,
+      });
+      await user.save();
+    }
+
+    const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN,
+    });
+
+    res.status(200).json({ token });
+  } catch (error) {
+    console.error('Error al verificar el token de Google:', error);
+    res.status(400).json({ error: 'Error al autenticar con Google.' });
+  }
+};
+
+const googleTokenHandler = async (req, res) => {
+  try {
+    const { credential } = req.body;
+    
+    if (!credential) {
+      return res.status(400).json({ error: 'Credencial de Google no proporcionada' });
+    }
+
+    // Verificar token con Google
+    const ticket = await clientGoogle.verifyIdToken({
+      idToken: credential,
+      audience: process.env.CLIENT_ID,
+    });
+    
+    const payload = ticket.getPayload();
+    const googleId = payload.sub;
+    const email = payload.email;
+    const name = payload.given_name || payload.name;
+    const familyName = payload.family_name || '';
+    const picture = payload.picture || '';
+
+    // Buscar usuario existente
+    let user = await Usuario.findOne({ 
+      $or: [
+        { googleId },
+        { correo: email }
+      ]
+    });
+
+    const isNewUser = !user;
+
+    if (!user) {
+      // Crear nuevo usuario sin campos obligatorios tradicionales
+      user = new Usuario({
+        googleId,
+        correo: email,
+        nombre: name,
+        apellidos: familyName,
+        imagen: picture,
+        estado: 'pendiente',
+        metodoRegistro: 'google',
+        registroCompleto: false
+      });
+      
+      await user.save();
+    } else if (!user.googleId) {
+      // Actualizar usuario existente con googleId
+      user.googleId = googleId;
+      user.metodoRegistro = 'google';
+      await user.save();
+    }
+
+    // Generar token JWT
+    const token = jwt.sign(
+      { 
+        id: user._id, 
+        email: user.correo,
+        nombre: user.nombre,
+        registroCompleto: user.registroCompleto
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
+    );
+    
+    res.json({ 
+      success: true,
+      token, 
+      isNewUser,
+      registroCompleto: user.registroCompleto,
+      user: {
+        id: user._id,
+        nombre: user.nombre,
+        email: user.correo,
+        imagen: user.imagen
+      }
+    });
+
+  } catch (error) {
+    console.error('Error en autenticación Google:', error);
+    
+    // Manejo específico de errores de validación
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ 
+        error: 'Error de validación',
+        details: errors
+      });
+    }
+    
+    res.status(500).json({ 
+      error: 'Error en autenticación con Google',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+const completeGoogleRegistration = async (req, res) => {
+  try {
+    const { googleId, email, nombre, imagen, telefono, fechaNacimiento, direccion, pais } = req.body;
+
+    // Validaciones básicas
+    if (!googleId || !email) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Datos de Google incompletos' 
+      });
+    }
+
+    if (!telefono || !fechaNacimiento) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Teléfono y fecha de nacimiento son obligatorios' 
+      });
+    }
+
+    // Validar formato de teléfono
+    if (!/^[0-9]{10,15}$/.test(telefono)) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Formato de teléfono no válido (solo números, 10-15 dígitos)' 
+      });
+    }
+
+    // Validar fecha
+    const fechaMoment = moment(fechaNacimiento, "YYYY-MM-DD", true);
+    if (!fechaMoment.isValid()) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Formato de fecha no válido. Use YYYY-MM-DD' 
+      });
+    }
+
+    // Calcular edad
+    const edad = moment().diff(fechaMoment, 'years');
+    if (edad < 18) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Debes ser mayor de 18 años para registrarte' 
+      });
+    }
+
+    // Buscar o crear usuario
+    let usuario = await Usuario.findOneAndUpdate(
+      { googleId },
+      {
+        telefono,
+        fechaNacimiento: fechaMoment.toDate(),
+        direccion: direccion || '',
+        pais: pais || '',
+        estado: 'activo',
+        registroCompleto: true,
+        nombre: nombre || '',
+        imagen: imagen || '',
+        correo: email
+      },
+      { new: true, upsert: true, select: '-contrasenia -pin -verificationCode' }
+    );
+
+    // Generar token JWT
+    const token = jwt.sign(
+      { 
+        id: usuario._id, 
+        email: usuario.correo,
+        nombre: usuario.nombre,
+        registroCompleto: true
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
+    );
+
+    // Respuesta exitosa
+    res.json({ 
+      success: true,
+      token,
+      redirectTo: 'index.html', // Especificamos a dónde redirigir
+      message: 'Registro completado exitosamente'
+    });
+
+  } catch (error) {
+    console.error('Error al completar registro:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Error al completar registro',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
 module.exports = {
   usuarioPost,
   usuarioPostId,
@@ -538,5 +799,8 @@ module.exports = {
   validarPin,
   loginPost,
   verifyUser,
-  verifyCodePost
+  verifyCodePost,
+  googleCallback,
+  googleTokenHandler,
+  completeGoogleRegistration
 };
